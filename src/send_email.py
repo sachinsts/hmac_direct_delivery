@@ -3,9 +3,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 
-sender_email = "sender-gmail@gmail.com"
-receiver_email = "receiver-email@gmail.com"
-password = "password"
+sender_email = "sachinndevkar@gmail.com"
+receiver_email = "sachin.devkar@sts.in"
+password = "prime1122**"
 
 msg = MIMEMultipart()
 msg['From'] = sender_email
