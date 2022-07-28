@@ -1,24 +1,20 @@
-import smtplib, ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.header import Header
+#!/usr/bin/python
 
-sender_email = "sachinndevkar@gmail.com"
-receiver_email = "sachin.devkar@sts.in"
-password = "prime1122**"
+import smtplib
 
-msg = MIMEMultipart()
-msg['From'] = sender_email
-msg['To'] = receiver_email
-msg['Subject'] = Header('Some Title', 'utf-8').encode()
+sender = 'from@fromdomain.com'
+receivers = ['to@todomain.com']
 
-body = 'Hello World!'
+message = """From: From Person <from@fromdomain.com>
+To: To Person <to@todomain.com>
+Subject: SMTP e-mail test
 
-msg_content = MIMEText(body, 'plain', 'utf-8')
-msg.attach(msg_content)
+This is a test e-mail message.
+"""
 
-# Create secure connection with server and send email
-context = ssl.create_default_context()
-with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-    server.login(sender_email, password)
-    server.sendmail(sender_email, receiver_email, msg.as_string())
+try:
+   smtpObj = smtplib.SMTP('localhost')
+   smtpObj.sendmail(sender, receivers, message)         
+   print "Successfully sent email"
+except SMTPException:
+   print "Error: unable to send email"
