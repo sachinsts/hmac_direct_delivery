@@ -134,7 +134,7 @@ class VulnerabilityCollector:
     """
 
     def graphql(self, query):
-        print("Authorization": "bearer %s" % self.authtoken)
+        print("Authorization: bearer %s" % self.authtoken)
         exit()
         r = requests.post(
             "https://api.github.com/graphql",
