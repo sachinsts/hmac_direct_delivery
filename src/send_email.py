@@ -134,13 +134,13 @@ class VulnerabilityCollector:
     """
 
     def graphql(self, query):
-        print("Authorization: bearer %s" % self.authtoken)
-        exit()
+        #print("Authorization: bearer %s" % self.authtoken)
+        #exit()
         r = requests.post(
             "https://api.github.com/graphql",
             json={"query": query},
             headers={
-                "Authorization": "bearer %s" % self.authtoken,
+                "Authorization: bearer %s" % self.authtoken,
                 # vulnerabilities are currently in beta, see
                 # <https://developer.github.com/v4/previews/>
                 "Accept": "application/vnd.github.vixen-preview+json",
