@@ -9,7 +9,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.6
       - name: Install dependencies and send email
         run: |
           set -x 
@@ -17,4 +17,4 @@ jobs:
           pip install pipenv 
           pipenv install
           pipenv install requests
-          pipenv run python src/send_email.py --owner "sachinsts" --authtoken "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"
+          pipenv run python src/send_email.py --owner "sachinsts" --authtoken "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"
