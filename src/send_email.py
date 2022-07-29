@@ -143,7 +143,7 @@ class VulnerabilityCollector:
             json={"query": query},
             headers={
                 "Authorization" : token,
-                "Accept": "application/vnd.github.vixen-preview+json",
+                "Accept": "application/json",
             },
         )
         r.raise_for_status()
