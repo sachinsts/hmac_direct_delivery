@@ -1,123 +1,311 @@
+import argparse
+
+# import collections
+import logging
+import os
+import requests
+import sys
+
+# import time
+
+log = logging.getLogger(__name__)
+LOG_FORMAT = "%(asctime)s %(levelname)-5.5s %(message)s"
 
 
-# just a playground for reading/writing potential security doc files
-# the rough idea right now is that each repo would have a security doc
-# that includes baseline security information. Some would need to be
-# manually written, some could be automated, and then the whole file could be
-# machine-read to help generate the security score for the repo.
-import json
+class VulnerabilityCollector:
+    def configure(self, owner, authtoken, include_forked=False):
+        self.owner = owner
+        self.authtoken = authtoken
+        self.include_forked = include_forked
+        self.score = {
+            "CRITICAL": 11,
+            "HIGH": 5,
+            "MODERATE": 2,
+            "LOW": 1
+        }
+        self.repos = {}
+
+    def make_vuln_dict(self, vuln, reponame):
+        one = {}
+        ecosystem = vuln["securityVulnerability"]["package"]["ecosystem"]
+        one["dismissedAt"] = vuln["dismissedAt"]
+        one["currentVersion"] = vuln["vulnerableRequirements"]
+        one["severity"] = vuln["securityVulnerability"]["severity"]
+        if (ecosystem != "RUBYGEMS") and (not one["dismissedAt"]) and (not reponame.startswith("frontend")):
+            one["used"] = True
+            one["score"] = self.score[one["severity"]]
+        else:
+            one["used"] = False
+            one["score"] = 0
+        if vuln["securityVulnerability"]["firstPatchedVersion"] is None:
+            one["patchedVersion"] = "None"
+        else:
+            one["patchedVersion"] = vuln["securityVulnerability"][
+                "firstPatchedVersion"
+            ]["identifier"]
+        one["ecosystem"] = ecosystem
+        return one
+
+    def collect(self):
+        # log.info('Retrieving data from GitHub API')
+        has_next = True
+        cursor = ""
+        while has_next:
+            r = self.graphql(
+                self.QUERY
+                % {
+                    "owner": self.owner,
+                    "cursor": ', after:"%s"' % cursor if cursor else "",
+                    "repo_batch_size": self.REPO_BATCH_SIZE,
+                    "vuln_batch_size": self.VULN_BATCH_SIZE,
+                }
+            )
+            # print("GOT A RESULT: Data:")
+            data = r["data"]["repositoryOwner"]["repositories"]
+            # print(data)
+            # print("*****************************")
+            page = data["pageInfo"]
+            has_next = page["hasNextPage"]
+            cursor = page["endCursor"]
+
+            for repo in data["nodes"]:
+                # print("GOT A REPO")
+                # print(repo)
+                # print("++++++++++++++++++++++++++++")
+                # reponame = "%s/%s" % (self.owner, repo["name"])
+                reponame = repo["name"]
+                vuln_info = repo["vulnerabilityAlerts"]
+                total_count = vuln_info["totalCount"]
+                self.repos[reponame] = {}
+                self.repos[reponame]["count"] = total_count
+                self.repos[reponame]["isArchived"] = repo["isArchived"]
+                # print('Repo %s isArchived is: %s' % (reponame, repo['isArchived']))
+                if total_count > 0:
+                    for vuln in vuln_info["nodes"]:
+                        packagename = vuln["securityVulnerability"]["package"]["name"]
+                        if packagename == "count":
+                            print("!!! OH NO package named count!!!")
+                        newscore = self.score[vuln["securityVulnerability"]["severity"]]
+                        if packagename in self.repos[reponame]:
+                            if self.repos[reponame][packagename]["used"] and self.repos[reponame][packagename]["score"] < newscore:
+                                self.repos[reponame][packagename]["score"] = newscore
+                        else:
+                            one = self.make_vuln_dict(vuln, reponame)
+                            # print('%s: severity: %s  package: %s' % (reponame, one['severity'], one['package']))
+                            self.repos[reponame][packagename] = one
+                    # print(vulns[reponame])
+        # print('FINISHED COLLECTING')
+        return
+
+    REPO_BATCH_SIZE = 50
+    VULN_BATCH_SIZE = 50
+    QUERY = """query {
+    repositoryOwner(login:"%(owner)s") {
+      repositories(first:%(repo_batch_size)s%(cursor)s) {
+        nodes {
+          name
+          isArchived
+          vulnerabilityAlerts(first:%(vuln_batch_size)s) {
+            totalCount
+            nodes {
+              dismissedAt
+              vulnerableRequirements
+              securityVulnerability {
+                severity
+                firstPatchedVersion {
+                  identifier
+                }
+                package {
+                  name
+                  ecosystem
+                }
+              }
+            }
+          }
+        }
+
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }}
+    """
+
+    def graphql(self, query):
+        r = requests.post(
+            "https://api.github.com/graphql",
+            json={"query": query},
+            headers={
+                "Authorization": "Bearer %s" % self.authtoken,
+                # vulnerabilities are currently in beta, see
+                # <https://developer.github.com/v4/previews/>
+                "Accept": "application/vnd.github.vixen-preview+json",
+            },
+        )
+        r.raise_for_status()
+        return r.json()
 
 
-# Initial rough idea of security score - the lower the score, the better, for
-# each repo.
-# Elements could be Github issue count, automated test coverage, static scan
-# score, pen test score, swagger documentation, monitoring link, recent audit,
-# open issues, risk rating and owner contact information.
-# Some of these don't exist yet. And we may want to add more - for example name
-# or link to a security design doc
-
-# initial pass at a security doc might look something like this
-DEMO_SEC_INFO = {
-    "repo_name": "ows-accounting",
-    "github_vulnerabilities": 3,
-    "test_coverage": 78,
-    "static_scan": 21,
-    "pen_test": 0,
-    "swagger_docs": "http://swagger.theorchard.io/service/ows-accounting",
-    "monitor_link": "https://ows-accounting.theorchard.io/hello",
-    "last_audited": "2020-02-26",
-    "open_issues": 0,
-    "risk_rating": 3,
-    "owner_contact": "jgetter@theorchard.com",
-    "score": 80,
-}
-
-DEFAULT_SEC_INFO = {
-    "repo_name": "",
-    "github_vulnerabilities": 30,
-    "test_coverage": 0,
-    "static_scan": 30,
-    "pen_test": 30,
-    "swagger_docs": "n/a",
-    "monitor_link": "n/a",
-    "last_audited": "n/a",
-    "open_issues": 30,
-    "risk_rating": 3,
-    "owner_contact": "n/a",
-}
-
-# maybe have a method to set each of these, if they aren't set?
-# plus methods to read and write this to a standard file name
-# I think the idea is - maybe - have a directory name passed in
-# on the command line, try to read this file from the directory if
-# it exists, update scores where possible, calculate a total score,
-# and write the updated file back.
-# If the file doesn't exist, then create one with updated scores.
-
-# getting the code coverage report - either we need to be able to access
-# jenkins and get the number from it, or Jenkins needs to call out to us
-# and report a score somehow.
-# It could be an issue getting the security doc updated and checked back
-# into the repository, changes committed, but maybe they shouldn't be in the
-# same repo that they have the information for? The issue is discoverability.
-# In most ways I think it would be preferable to have the sec doc at the root
-# of each repo, so it can be easily seen and checked with the repo, and people
-# who work on the repo are immediately aware of it.
+def print_short(vuln_dict, skip_zeros=True):
+    print("Total repos,%s" % len(vuln_dict))
+    for entry in vuln_dict:
+        # print(entry)
+        # print(vuln_dict[entry])
+        count = vuln_dict[entry]["count"]
+        if (count > 0 or not (skip_zeros)) and (not (vuln_dict[entry]["isArchived"])):
+            print("%s,%s" % (entry, vuln_dict[entry]["count"]))
+        # print('*****************')
 
 
-def calculate_score(sec_data):
-    sec_data["score"] = 20
-    return sec_data
+def repo_score(repo):
+    score = 0
+    for package, info in repo.items():
+        if package != "count" and package != "isArchived":
+            score += info["score"]
+    return score
 
 
-# for getting the static score results it may be similar to the code
-# coverage issue - how to automatically get the numbers, either from
-# a sonarqube API call or some other method - sonarqube calling out.
-def set_static_scan(sec_data):
-    if not(sec_data["staticc_scan"]):
-        sec_data["static_scan"] = 30
-    return sec_data
+def severity_count(repo, severity):
+    count = 0
+    for package, info in repo.items():
+        if package != "count" and package != "isArchived":
+            if info["used"] and info["severity"] == severity:
+                count += 1
+    return count
 
 
-# need to see if jenkins has an API or standard way we could get info
-# from the code coverage output. If not we may need to find a way for Jenkins
-# to send the coverage number somewhere so we can get it.
-def set_test_coverage(sec_data):
-    if not(sec_data["test_coverage"]):
-        sec_data["test_coverage"] = 0
-    return sec_data
+def high_count(repo):
+    return severity_count(repo, "HIGH")
 
 
-# here want to reuse some of the github exporter code to pull the latest
-# total count of vulnerabilities from github
-def set_github_vulnerabilities(sec_data):
-    if not(sec_data["github_vulnerabilities"]):
-        sec_data["github_vulnerabilities"] = 30
-    return sec_data
+def critical_count(repo):
+    return severity_count(repo, "CRITICAL")
 
 
-# here we would want to call an API on the pen test tool to get a score
-# but we shouldn't overwrite a score that is there until we have a pen
-# test tool in place - since we could add manually for now
-def set_pen_test(sec_data):
-    if not(sec_data["pen_test"]):
-        sec_data["pen_test"] = 30
-    return sec_data
+def moderate_count(repo):
+    return severity_count(repo, "MODERATE")
 
 
-def read_doc(filename):
-    with open(filename) as json_file:
-        sec_data = json.load(json_file)
-    return sec_data
+def low_count(repo):
+    return severity_count(repo, "LOW")
 
 
-def write_doc(filename, sec_data):
-    with open(filename, "w") as json_file:
-        json.dump(sec_data, json_file, indent=1)
+# this should print a score for each repository, then an overall total score
+# and would be nice to have total number of CRITICAL, HIGH, MODERATE, and LOW
+def print_report(vuln_dict):
+    total_high = 0
+    total_critical = 0
+    total_moderate = 0
+    total_low = 0
+    print("Repository,Score")
+    for name, repo in vuln_dict.items():
+        total_high += high_count(repo)
+        total_critical += critical_count(repo)
+        total_moderate += moderate_count(repo)
+        total_low += low_count(repo)
+        count = repo["count"]
+        if not (repo["isArchived"]):
+            if count > 0:
+                total_score = repo_score(repo)
+                print("%s,%s" % (name, total_score))
+            else:
+                print("%s,0" % (name))
+
+            # for package, info in repo.items():
+            #    if package != "isArchived" and package != "count":
+            #        print("%s,%s,%s" % (name, package, info["score"]))
+    print("Critical: %s" % (total_critical))
+    print("High: %s" % (total_high))
+    print("Moderate: %s" % (total_moderate))
+    print("Low: %s" % (total_low))
+    if total_critical > 0 :
+        raise Exception("Critical error found in repo")
+
+
+def print_new(vuln_dict, skip_zeros=True):
+    print("Repo,Package,Severity,score,Ecosystem,dismissedAt,Current,Patched")
+    for name, repo in vuln_dict.items():
+        count = repo["count"]
+        if (count > 0) and (not (repo["isArchived"])):
+            for package, info in repo.items():
+                if package != "isArchived" and package != "count":
+                    print(
+                        "%s,%s,%s,%s,%s,%s,%s,%s"
+                        % (
+                            name,
+                            package,
+                            info["severity"],
+                            info["score"],
+                            info["ecosystem"],
+                            info["dismissedAt"],
+                            info["currentVersion"],
+                            info["patchedVersion"]
+                        )
+                    )
+
+
+def print_full(vuln_dict, skip_zeros=True):
+    print("Repo,Severity,Package,Current,Patched,Ecosystem,dismissedAt,FE,Mult,Crit,High,Mod,Low")
+    for entry in vuln_dict:
+        count = vuln_dict[entry]["count"]
+        if (count > 0 or not (skip_zeros)) and (not (vuln_dict[entry]["isArchived"])):
+            for info in vuln_dict[entry]["info"]:
+                frontend = 1 if info["package"].startswith("frontend") else 0
+                multiplier = 1
+                if frontend == 1 or info["ecosystem"] == "RUBYGEMS":
+                    multiplier = 0
+                print(
+                    "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s"
+                    % (
+                        entry,
+                        info["severity"],
+                        info["package"],
+                        info["currentVersion"],
+                        info["patchedVersion"],
+                        info["ecosystem"],
+                        info["dismissedAt"],
+                        frontend,
+                        multiplier,
+                        '1' if info["severity"] == "CRITICAL" else "0",
+                        '1' if info["severity"] == "HIGH" else "0",
+                        "1" if info["severity"] == "MODERATE" else "0",
+                        "1" if info["severity"] == "LOW" else "0",
+                        info["score"] * multiplier
+                    )
+                )
+
+
+COLLECTOR = VulnerabilityCollector()
 
 
 def main():
-    write_doc("test_sec_doc.json", DEMO_SEC_INFO)
+    parser = argparse.ArgumentParser(description="Export GitHub vulnerability alerts")
+    parser.add_argument("--owner", help="GitHub owner name")
+    parser.add_argument("--authtoken", help="GitHub API token")
+    parser.add_argument(
+        "--short",
+        action="store_true",
+        help="Short form output, otherwise defaults to long form detailed output",
+    )
+    options = parser.parse_args()
+    if not options.owner:
+        options.owner = os.environ.get("GITHUB_OWNER")
+    if not options.authtoken:
+        options.authtoken = os.environ.get("GITHUB_AUTHTOKEN")
+
+    if not all([options.owner, options.authtoken]):
+        parser.print_help()
+        raise SystemExit(1)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=LOG_FORMAT)
+
+    COLLECTOR.configure(options.owner, options.authtoken)
+    COLLECTOR.collect()
+    if options.short:
+        print_report(COLLECTOR.repos)
+    else:
+        print_new(COLLECTOR.repos)
+
 
 
 main()
