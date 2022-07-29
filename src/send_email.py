@@ -136,10 +136,11 @@ class VulnerabilityCollector:
     def graphql(self, query):
         #print("Authorization: bearer %s" % self.authtoken)
         #exit()
+        
+        token = "bearer %s" % self.authtoken
         r = requests.post(
             "https://api.github.com/graphql",
             json={"query": query},
-            token = "bearer %s" % self.authtoken
             headers={
                 "Authorization" : token,
                 "Accept": "application/vnd.github.vixen-preview+json",
