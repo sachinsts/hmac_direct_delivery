@@ -138,7 +138,7 @@ class VulnerabilityCollector:
             "https://api.github.com/graphql",
             json={"query": query},
             headers={
-                "Authorization": "Bearer %s" % self.authtoken,
+                "Authorization": "bearer %s" % self.authtoken,
                 # vulnerabilities are currently in beta, see
                 # <https://developer.github.com/v4/previews/>
                 "Accept": "application/vnd.github.vixen-preview+json",
