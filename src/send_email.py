@@ -143,7 +143,7 @@ class VulnerabilityCollector:
                 "Authorization: bearer %s" % self.authtoken,
                 # vulnerabilities are currently in beta, see
                 # <https://developer.github.com/v4/previews/>
-                "Accept": "application/vnd.github.vixen-preview+json",
+                "Accept: application/vnd.github.vixen-preview+json",
             },
         )
         r.raise_for_status()
