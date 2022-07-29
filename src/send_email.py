@@ -219,8 +219,6 @@ def print_report(vuln_dict):
     print("High: %s" % (total_high))
     print("Moderate: %s" % (total_moderate))
     print("Low: %s" % (total_low))
-    if total_critical > 0 :
-        raise Exception("Critical error found in repo")
 
 
 def print_new(vuln_dict, skip_zeros=True):
