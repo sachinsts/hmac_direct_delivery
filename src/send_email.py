@@ -138,7 +138,7 @@ class VulnerabilityCollector:
         #print("owner %s" % self.owner)
         #exit()
         
-        token = "Bearer %s" % self.authtoken
+        token = "token %s" % self.authtoken
         r = requests.post(
             "https://api.github.com/graphql",
             json={"query": query},
