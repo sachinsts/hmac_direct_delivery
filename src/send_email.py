@@ -139,11 +139,10 @@ class VulnerabilityCollector:
         r = requests.post(
             "https://api.github.com/graphql",
             json={"query": query},
+            token = "bearer %s" % self.authtoken
             headers={
-                "Authorization: bearer %s" % self.authtoken,
-                # vulnerabilities are currently in beta, see
-                # <https://developer.github.com/v4/previews/>
-                "Accept: application/vnd.github.vixen-preview+json",
+                "Authorization" : token,
+                "Accept": "application/vnd.github.vixen-preview+json",
             },
         )
         r.raise_for_status()
