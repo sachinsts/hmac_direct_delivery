@@ -17,4 +17,4 @@ jobs:
           pip install pipenv 
           pipenv install
           pipenv install requests
-          pipenv run python src/send_email.py
+          pipenv run python src/send_email.py --owner sachinsts --authtoken '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'
