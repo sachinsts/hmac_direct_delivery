@@ -283,13 +283,7 @@ COLLECTOR = VulnerabilityCollector()
 
 def main():
     parser = argparse.ArgumentParser(description="Export GitHub vulnerability alerts")
-    parser.add_argument("--owner", help="GitHub owner name")
-    parser.add_argument("--authtoken", help="GitHub API token")
-    parser.add_argument(
-        "--short",
-        action="store_true",
-        help="Short form output, otherwise defaults to long form detailed output",
-    )
+    
     options = parser.parse_args()
     if not options.owner:
         options.owner = os.environ.get("GITHUB_OWNER")
