@@ -282,6 +282,7 @@ COLLECTOR = VulnerabilityCollector()
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Export GitHub vulnerability alerts")
     options = parser.parse_args()
     options.owner = os.environ.get("GITHUB_OWNER")
     options.authtoken = os.environ.get("GITHUB_AUTHTOKEN")
