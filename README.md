@@ -2,7 +2,7 @@
 
 Installation 
 1. Take clone of repo and run command python -m venv venv
-2. Run pip install requests
+2. Run pip install requests 
 3. Run command flask run --port=5000
 4. follow step 1,2 in another location and run command  flask run --port=4000, this will run same application on different port
 
