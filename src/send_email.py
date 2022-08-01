@@ -300,7 +300,7 @@ def main():
         parser.print_help()
         raise SystemExit(1)
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=LOG_FORMAT)
-
+    print("----------------------------------------", options.authtoken)
     COLLECTOR.configure(options.owner, options.authtoken)
     COLLECTOR.collect()
     if options.short:
