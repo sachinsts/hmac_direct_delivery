@@ -283,7 +283,7 @@ COLLECTOR = VulnerabilityCollector()
 
 def main():
     
-    options = {}
+    options = {"owner": "", "authtoken": ""}
     options.owner = os.environ.get("GITHUB_OWNER")
     options.authtoken = os.environ.get("GITHUB_AUTHTOKEN")
 
