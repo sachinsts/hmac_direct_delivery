@@ -17,4 +17,4 @@ jobs:
           pip install pipenv 
           pipenv install
           pipenv install requests
-          pipenv run python src/send_email.py
+          pipenv run python src/send_email.py --owner ${{ GITHUB_REPOSITORY_OWNER }} --authtoken ${{ secrets.pat }}
