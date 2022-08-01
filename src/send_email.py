@@ -284,15 +284,15 @@ COLLECTOR = VulnerabilityCollector()
 def main():
     
     options = {"owner": "", "authtoken": ""}
-    options.owner = os.environ.get("GITHUB_OWNER")
-    options.authtoken = os.environ.get("GITHUB_AUTHTOKEN")
+    owner = os.environ.get("GITHUB_OWNER")
+    authtoken = os.environ.get("GITHUB_AUTHTOKEN")
 
-    if not all([options.owner, options.authtoken]):
-        parser.print_help()
-        raise SystemExit(1)
+    #if not all([options.owner, options.authtoken]):
+    #    parser.print_help()
+    #    raise SystemExit(1)
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=LOG_FORMAT)
-    print("----------------------------------------", options.authtoken)
-    COLLECTOR.configure(options.owner, options.authtoken)
+    #print("----------------------------------------", options.authtoken)
+    COLLECTOR.configure(owner, authtoken)
     COLLECTOR.collect()
     if options.short:
         print_report(COLLECTOR.repos)
