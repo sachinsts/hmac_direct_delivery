@@ -17,4 +17,4 @@ jobs:
           pip install pipenv 
           pipenv install
           pipenv install requests
-          pipenv run python src/send_email.py --owner "sachinsts" --authtoken ${{ secrets.PAT }}
+          pipenv run python src/scan_repo.py --owner "sachinsts" --authtoken ${{ secrets.PAT }}
