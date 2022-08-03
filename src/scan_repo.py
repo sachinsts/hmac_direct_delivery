@@ -134,6 +134,9 @@ def main():
     #     parser.print_help()
     #     raise SystemExit(1)
     # logging.basicConfig(stream=sys.stdout, level=logging.INFO, format=LOG_FORMAT)
+    repo_name = ${{ github.event.repository.name }}
+    print(repo_name)
+    exit()
     options = {"owner":"sachinsts", "authtoken":"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"}
     COLLECTOR.configure(options["owner"], options["authtoken"])
     COLLECTOR.collect()
