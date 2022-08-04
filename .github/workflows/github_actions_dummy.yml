@@ -1,6 +1,15 @@
 name: GitHub Actions Demo
 on:
    workflow_call:
+     inputs:
+      reponame:
+        required: true
+        type: string
+      owner: 
+        type: string
+     secrets:
+      authtoken:
+        required: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,4 +27,4 @@ jobs:
           pip install pipenv 
           pipenv install
           pipenv install requests
-          pipenv run python src/scan_repo.py --owner "sachinsts" --authtoken ${{ secrets.PAT }}
+          pipenv run python src/scan_repo.py --owner ${{ inputs.owner }} --authtoken ${{ secrets.authtoken }} --reponame ${{ inputs.reponame }}
